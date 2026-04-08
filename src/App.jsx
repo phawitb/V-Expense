@@ -6,7 +6,7 @@ import { GoogleOAuthProvider, GoogleLogin, googleLogout } from '@react-oauth/goo
 const apiKey = "AIzaSyCd6QYhaxSFo8hZx_Me8YLWx0TVkUHp6a4"; 
 const API_BASE = window.location.hostname === 'localhost' 
   ? "http://localhost:5001/api" 
-  : "https://your-backend-name.onrender.com/api"; // แก้ชื่อตรงนี้เมื่อได้ URL จาก Render
+  : "https://v-expense-api.onrender.com/api"; 
 const GOOGLE_CLIENT_ID = "561203798169-01m6dcriti21hbbrn5p54ddmg34f65c0.apps.googleusercontent.com";
 
 const fetchGemini = async (payload, isJson = false) => {
