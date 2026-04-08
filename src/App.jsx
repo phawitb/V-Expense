@@ -3,27 +3,32 @@ import { Home, MessageCircle, Plus, Camera, Wallet, Calendar, Send, Loader2, Tar
 import { GoogleOAuthProvider, GoogleLogin, googleLogout } from '@react-oauth/google';
 
 // --- API Setup ---
-const apiKey = "AIzaSyCd6QYhaxSFo8hZx_Me8YLWx0TVkUHp6a4"; 
 const API_BASE = window.location.hostname === 'localhost' 
   ? "http://localhost:5001/api" 
   : "https://v-expense-api.onrender.com/api"; 
 const GOOGLE_CLIENT_ID = "561203798169-01m6dcriti21hbbrn5p54ddmg34f65c0.apps.googleusercontent.com";
 
 const fetchGemini = async (payload, isJson = false) => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  const data = await response.json();
-  const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!textResponse) throw new Error("No valid response from AI");
-  if (isJson) {
-    const cleanJsonStr = textResponse.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleanJsonStr);
+  try {
+    const response = await fetch(`${API_BASE}/ai/gemini`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload })
+    });
+    const data = await response.json();
+    
+    const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!textResponse) throw new Error("No valid response from AI");
+    
+    if (isJson) {
+      const cleanJsonStr = textResponse.replace(/```json\n?|\n?```/g, '').trim();
+      return JSON.parse(cleanJsonStr);
+    }
+    return textResponse;
+  } catch (error) {
+    console.error("AI Error:", error);
+    throw error;
   }
-  return textResponse;
 };
 
 // --- Constants ---
