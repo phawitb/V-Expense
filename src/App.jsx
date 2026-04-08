@@ -99,6 +99,7 @@ function MainApp() {
   const [transactions, setTransactions] = useState([]);
   const [inputText, setInputText] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedChatImage, setSelectedChatImage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   
   const [expandedGroups, setExpandedGroups] = useState(new Set());
@@ -114,6 +115,7 @@ function MainApp() {
   const [chatInput, setChatInput] = useState('');
   
   const fileInputRef = useRef(null);
+  const chatFileInputRef = useRef(null);
   const chatEndRef = useRef(null);
   const chatInputRef = useRef(null);
 
@@ -460,15 +462,32 @@ function MainApp() {
   };
 
   const handleSendMessage = async () => {
-    if (!chatInput.trim()) return;
-    const userMsg = { role: 'user', content: chatInput };
+    if (!chatInput.trim() && !selectedChatImage) return;
+    
+    const userMsg = { 
+      role: 'user', 
+      content: chatInput,
+      image: selectedChatImage 
+    };
+    
     setChatMessages(prev => [...prev, userMsg]);
     setChatInput('');
+    const currentImage = selectedChatImage;
+    setSelectedChatImage(null);
+    if (chatFileInputRef.current) chatFileInputRef.current.value = '';
+    
     setIsLoading(true);
     try {
+      const parts = [{ text: chatInput || "วิเคราะห์รูปภาพนี้ให้หน่อย" }];
+      if (currentImage) {
+        const base64Data = currentImage.split(',')[1];
+        const mimeType = currentImage.match(/[^:]\w+\/[\w-+\d.]+(?=;|,)/)[0];
+        parts.push({ inlineData: { mimeType, data: base64Data } });
+      }
+
       const txHistory = transactions.map(t => `- ${t.item} (${t.amount} บาท)`).join('\n');
       const payload = {
-        contents: [{ parts: [{ text: chatInput }] }],
+        contents: [{ parts }],
         systemInstruction: {
           parts: [{ text: `คุณคือผู้ช่วยทางการเงิน ข้อมูลปัจจุบัน:\n${txHistory}\nรวมใช้จ่าย: ${totalSpent} บาท` }]
         }
@@ -734,27 +753,98 @@ function MainApp() {
 
         <main className="flex-1">{activeTab === 'home' ? renderDashboard() : (
           <div className="flex flex-col h-[calc(100vh-140px)] animate-in fade-in duration-300">
-            <div className="bg-emerald-500 text-white p-4 rounded-3xl mb-4 shadow-md flex items-center gap-3"><div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center"><MessageCircle size={20} /></div><div><h2 className="font-semibold">ผู้ช่วย AI ทางการเงิน</h2><p className="text-xs text-emerald-100">วิเคราะห์ข้อมูลใน Shared Wallet</p></div></div>
-            <div className="flex-1 overflow-y-auto space-y-4 px-1 pb-4">
+            <div className={`bg-emerald-500 text-white p-4 rounded-3xl mb-4 shadow-md flex items-center gap-3 ${isKeyboardOpen ? 'hidden' : 'flex'}`}>
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                <MessageCircle size={20} />
+              </div>
+              <div>
+                <h2 className="font-semibold">ผู้ช่วย AI ทางการเงิน</h2>
+                <p className="text-xs text-emerald-100">วิเคราะห์ข้อมูลใน Shared Wallet</p>
+              </div>
+            </div>
+
+            <div className={`flex-1 overflow-y-auto space-y-4 px-1 pb-4 ${isKeyboardOpen ? 'pb-20' : ''}`}>
               {chatMessages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[80%] p-4 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-emerald-500 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm leading-relaxed whitespace-pre-wrap'}`}>{msg.content}</div></div>
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] p-4 rounded-2xl text-sm shadow-sm ${
+                    msg.role === 'user' 
+                      ? 'bg-emerald-500 text-white rounded-br-sm' 
+                      : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm leading-relaxed whitespace-pre-wrap'
+                  }`}>
+                    {msg.image && (
+                      <img src={msg.image} alt="Upload" className="w-full max-h-48 object-cover rounded-lg mb-2 border border-white/20" />
+                    )}
+                    {msg.content}
+                  </div>
+                </div>
               ))}
-              {isLoading && activeTab === 'chat' && <div className="flex justify-start"><div className="bg-white border border-gray-100 p-4 rounded-2xl rounded-bl-sm shadow-sm"><Loader2 size={20} className="animate-spin text-emerald-500" /></div></div>}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-white border border-gray-100 p-4 rounded-2xl rounded-bl-sm shadow-sm">
+                    <Loader2 size={20} className="animate-spin text-emerald-500" />
+                  </div>
+                </div>
+              )}
               <div ref={chatEndRef} />
             </div>
-            <div className="bg-white rounded-2xl p-2 border border-gray-200 shadow-sm flex items-center mt-auto">
-              <input 
-                ref={chatInputRef}
-                type="text" 
-                placeholder="พิมพ์คำถามที่นี่..." 
-                className="flex-1 bg-transparent border-none focus:outline-none px-4 py-2 text-sm"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              />
-              <button onClick={handleSendMessage} disabled={isLoading || !chatInput.trim()} className="p-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 disabled:opacity-50 transition-colors">
-                <Send size={18} />
-              </button>
+
+            {/* Sticky Chat Input */}
+            <div className={`
+              transition-all duration-300 z-30 mt-auto
+              ${isKeyboardOpen ? 'fixed bottom-0 left-0 right-0 p-3 bg-white border-t border-emerald-100 shadow-2xl' : 'bg-white rounded-2xl p-2 border border-gray-200 shadow-sm'}
+            `}>
+              {selectedChatImage && (
+                <div className="relative w-20 h-20 mb-2 ml-2 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                  <img src={selectedChatImage} alt="Chat preview" className="w-full h-full object-cover" />
+                  <button 
+                    onClick={() => setSelectedChatImage(null)}
+                    className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full hover:bg-black/70"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-2">
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  ref={chatFileInputRef} 
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => setSelectedChatImage(reader.result);
+                      reader.readAsDataURL(file);
+                    }
+                  }} 
+                />
+                <button 
+                  onClick={() => chatFileInputRef.current?.click()}
+                  className="p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors"
+                >
+                  <Camera size={20} />
+                </button>
+                <div className={`flex-1 bg-gray-50 rounded-xl flex items-center px-4 border border-gray-100 focus-within:border-emerald-300 focus-within:ring-2 focus-within:ring-emerald-50 transition-all ${isKeyboardOpen ? 'ring-2 ring-emerald-100 border-emerald-300' : ''}`}>
+                  <input 
+                    ref={chatInputRef}
+                    type="text" 
+                    placeholder="พิมพ์คำถามหรือส่งรูปบิล..." 
+                    className="w-full bg-transparent border-none focus:outline-none py-2 text-sm"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  />
+                </div>
+                <button 
+                  onClick={handleSendMessage} 
+                  disabled={isLoading || (!chatInput.trim() && !selectedChatImage)} 
+                  className="p-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 active:scale-95 disabled:opacity-50 transition-colors"
+                >
+                  {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                </button>
+              </div>
             </div>
           </div>
         )}</main>
