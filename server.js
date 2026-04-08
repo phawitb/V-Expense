@@ -7,16 +7,39 @@ import { OAuth2Client } from 'google-auth-library';
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// --- CORS Configuration ---
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://v-expense.vercel.app', // เปลี่ยนเป็น URL จริงของคุณ
+  'https://v-expense-git-main-phawitbs-projects.vercel.app' // ตัวอย่าง preview url
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
+
 app.use(express.json());
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/smartspend';
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB Atlas'))
-  .catch(err => console.error('MongoDB Connection Error:', err));
+// MongoDB Connection with extra options
+const MONGODB_URI = process.env.MONGODB_URI;
+mongoose.connect(MONGODB_URI, {
+  connectTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+})
+  .then(() => console.log('✅ Successfully connected to MongoDB Atlas'))
+  .catch(err => {
+    console.error('❌ MongoDB Connection Error:', err.message);
+    process.exit(1); // บังคับให้ Render Restart ถ้าต่อ DB ไม่ได้
+  });
 
 // Schemas
 const WalletConfigSchema = new mongoose.Schema({
