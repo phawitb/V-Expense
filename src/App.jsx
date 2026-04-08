@@ -159,11 +159,37 @@ function MainApp() {
     setIsSettingBudget(true);
   };
 
-  const handleFileChange = (e) => {
+  const compressImage = (base64Str, maxWidth = 1280) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = (maxWidth / width) * height;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.7)); // บีบอัดคุณภาพเหลือ 70%
+      };
+    });
+  };
+
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => setSelectedImage(reader.result);
+      reader.onloadend = async () => {
+        const compressed = await compressImage(reader.result);
+        setSelectedImage(compressed);
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -813,7 +839,10 @@ function MainApp() {
                     const file = e.target.files[0];
                     if (file) {
                       const reader = new FileReader();
-                      reader.onloadend = () => setSelectedChatImage(reader.result);
+                      reader.onloadend = async () => {
+                        const compressed = await compressImage(reader.result);
+                        setSelectedChatImage(compressed);
+                      };
                       reader.readAsDataURL(file);
                     }
                   }} 
