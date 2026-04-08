@@ -8,11 +8,11 @@ dotenv.config();
 
 const app = express();
 
-// --- CORS Configuration ---
+// --- 1. CORS First ---
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://v-expense.vercel.app', // เปลี่ยนเป็น URL จริงของคุณ
-  'https://v-expense-git-main-phawitbs-projects.vercel.app' // ตัวอย่าง preview url
+  'https://v-expense.vercel.app',
+  'https://v-expense-git-main-phawitbs-projects.vercel.app'
 ];
 
 app.use(cors({
@@ -25,21 +25,19 @@ app.use(cors({
   }
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// --- 2. Payload Limit (Higher) ---
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// MongoDB Connection with extra options
+// MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI;
-mongoose.connect(MONGODB_URI, {
-  connectTimeoutMS: 10000,
-  socketTimeoutMS: 45000,
-})
+mongoose.connect(MONGODB_URI)
   .then(() => console.log('✅ Successfully connected to MongoDB Atlas'))
   .catch(err => {
     console.error('❌ MongoDB Connection Error:', err.message);
-    process.exit(1); // บังคับให้ Render Restart ถ้าต่อ DB ไม่ได้
+    process.exit(1);
   });
 
 // Schemas
@@ -56,7 +54,7 @@ const TransactionSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   groupId: { type: String },
   shopName: { type: String },
-  createdBy: { type: String }, // Google User Sub ID
+  createdBy: { type: String },
   userName: { type: String },
   userPicture: { type: String }
 });
@@ -73,20 +71,13 @@ app.post('/api/auth/google', async (req, res) => {
       audience: process.env.GOOGLE_CLIENT_ID,
     });
     const payload = ticket.getPayload();
-    // Return safe user info
-    res.json({ 
-      uid: payload.sub, 
-      email: payload.email, 
-      name: payload.name, 
-      picture: payload.picture 
-    });
+    res.json({ uid: payload.sub, email: payload.email, name: payload.name, picture: payload.picture });
   } catch (err) {
     res.status(401).json({ error: 'Invalid Google Token' });
   }
 });
 
 // --- API Endpoints ---
-
 app.get('/api/wallet/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -101,11 +92,7 @@ app.get('/api/wallet/:id', async (req, res) => {
 
 app.post('/api/wallet/:id/config', async (req, res) => {
   try {
-    const config = await WalletConfig.findOneAndUpdate(
-      { walletId: req.params.id },
-      { categories: req.body.categories },
-      { upsert: true, new: true }
-    );
+    const config = await WalletConfig.findOneAndUpdate({ walletId: req.params.id }, { categories: req.body.categories }, { upsert: true, new: true });
     res.json(config);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -141,11 +128,9 @@ app.delete('/api/transactions/:id', async (req, res) => {
   }
 });
 
-// Delete transaction group
 app.delete('/api/transactions/group/:groupId', async (req, res) => {
   try {
-    const { groupId } = req.params;
-    await Transaction.deleteMany({ groupId });
+    await Transaction.deleteMany({ groupId: req.params.groupId });
     res.json({ message: 'Group Deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -162,23 +147,14 @@ app.delete('/api/wallet/:id/reset', async (req, res) => {
   }
 });
 
-// --- Health Check for UptimeRobot ---
-app.get('/health', (req, res) => {
-  res.status(200).send('OK');
-});
+app.get('/health', (req, res) => res.status(200).send('OK'));
 
-// --- Gemini Proxy Endpoint ---
 app.post('/api/ai/gemini', async (req, res) => {
   const { payload } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await response.json();
     res.json(data);
   } catch (err) {
