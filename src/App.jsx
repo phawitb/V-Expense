@@ -599,20 +599,18 @@ function MainApp() {
           )}
         </div>
 
-        {selectedImage && !isKeyboardOpen && (
-          <div className="relative w-24 h-24 mb-3 rounded-xl overflow-hidden border border-gray-200">
+        {selectedImage && (
+          <div className={`relative mb-3 rounded-xl overflow-hidden border border-gray-200 shadow-sm ${isKeyboardOpen ? 'w-16 h-16 ml-1' : 'w-24 h-24'}`}>
             <img src={selectedImage} alt="Receipt" className="w-full h-full object-cover" />
-            <button onClick={() => { setSelectedImage(null); if(fileInputRef.current) fileInputRef.current.value = ''; }} className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full"><X size={14} /></button>
+            <button onClick={() => { setSelectedImage(null); if(fileInputRef.current) fileInputRef.current.value = ''; }} className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full"><X size={10} /></button>
           </div>
         )}
 
         <div className="flex items-center gap-2">
           <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-          {!isKeyboardOpen && (
-            <button onClick={() => fileInputRef.current?.click()} className="p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors">
-              <Camera size={22} />
-            </button>
-          )}
+          <button onClick={() => fileInputRef.current?.click()} className="p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors shrink-0">
+            <Camera size={22} />
+          </button>
           <div className={`flex-1 bg-gray-50 rounded-xl flex items-center px-4 border border-gray-100 focus-within:border-emerald-300 focus-within:ring-2 focus-within:ring-emerald-50 transition-all ${isKeyboardOpen ? 'ring-2 ring-emerald-100 border-emerald-300' : ''}`}>
             <input 
               type="text" 
@@ -626,7 +624,7 @@ function MainApp() {
           <button 
             onClick={handleAddExpense}
             disabled={isLoading || (!inputText.trim() && !selectedImage)}
-            className="p-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 active:scale-95 disabled:opacity-50 transition-colors"
+            className="p-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 active:scale-95 disabled:opacity-50 transition-colors shrink-0"
           >
             {isLoading ? <Loader2 size={22} className="animate-spin" /> : <Send size={22} />}
           </button>
